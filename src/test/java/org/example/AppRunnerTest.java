@@ -1,24 +1,42 @@
 package org.example;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import java.util.Properties;
 
 @DisplayName("Тестирование класса AppRunner")
 class AppRunnerTest {
 
-    private static final String INPUT_FILE = "lng.txt";
-    private static final String OUTPUT_FILE = "test_output.txt";
+    private Properties propertiesForSmallFile = new Properties();
+    private Properties propertiesForLargeFile = new Properties();
+
+    @BeforeEach
+    public void prepare() {
+        propertiesForSmallFile.put("linePattern", "\"(.*?)\"");
+        propertiesForSmallFile.put("separator", ";");
+        propertiesForSmallFile.put("input", "lng.txt");
+        propertiesForSmallFile.put("output", "test_output.txt");
+
+        propertiesForLargeFile.put("linePattern", "\"(.*?)\"");
+        propertiesForLargeFile.put("separator", ";");
+        propertiesForLargeFile.put("input", "lng-big.csv");
+        propertiesForLargeFile.put("output", "test_output.csv");
+    }
 
     @Test
-    @DisplayName("Тест скорости выполнения для кейса с указанием исходного файла с данными")
-    void proceedsForLessThan30SecWithExistentTestDataFile() {
+    @DisplayName("Тест скорости выполнения для файла с небольшим набором данных")
+    void proceedsForLessThan30SecForSmallTestFile() {
         var runtime = Runtime.getRuntime();
         runtime.gc();
         long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
         long startTime = System.currentTimeMillis();
 
-        AppRunner.main(new String[] {INPUT_FILE});
+        var sysProperties = System.getProperties();
+        sysProperties.putAll(propertiesForSmallFile);
+        AppRunner.main(new String[]{});
 
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
@@ -34,14 +52,16 @@ class AppRunnerTest {
 
     @Test
     @DisplayName(
-            "Тест скорости выполнения для кейса с указанием исходного файла с данными и файла для записи результата")
-    void proceedsForLessThan30SecWithExistentTestDataFileAndOutput() {
+            "Тест скорости выполнения для файла с большим набором данных")
+    void proceedsForLessThan30SecForLargeTestFile() {
         var runtime = Runtime.getRuntime();
         runtime.gc();
         long memoryBefore = runtime.totalMemory() - runtime.freeMemory();
         long startTime = System.currentTimeMillis();
 
-        AppRunner.main(new String[] {INPUT_FILE, OUTPUT_FILE});
+        var sysProperties = System.getProperties();
+        sysProperties.putAll(propertiesForLargeFile);
+        AppRunner.main(new String[] {});
 
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;

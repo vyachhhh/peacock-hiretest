@@ -1,11 +1,7 @@
 package org.example;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Класс структуры системы непересекающихся множеств Disjoint Set Union (Union-Find). */
 public class DisjointSetUnion {
@@ -31,7 +27,9 @@ public class DisjointSetUnion {
     public DisjointSetUnion(int n) {
         parent = new int[n];
         rank = new int[n];
-        IntStream.range(0, n).forEach(index -> parent[index] = index);
+        for (int i = 0; i < n; i++) {
+            parent[i] = i;
+        }
     }
 
     /**
@@ -66,7 +64,8 @@ public class DisjointSetUnion {
      *
      * @param x Индекс первого элемента
      * @param y Индекс второго элемента
-     * @return {@code True} - при объединении множеств; {@code False} - если множества уже объединены.
+     * @return {@code True} - при объединении множеств; {@code False} - если множества уже
+     *     объединены.
      */
     public boolean unite(int x, int y) {
         int xRoot = find(x);
@@ -116,42 +115,46 @@ public class DisjointSetUnion {
          */
         public static DisjointSetUnion processDsuForLines(List<String[]> lines) {
             int lineCount = lines.size();
+            DisjointSetUnion dsu = new DisjointSetUnion(lineCount);
 
-            // Инициализируем объект DSU для итогового кол-ва строк
-            DisjointSetUnion disjointSetUnion = new DisjointSetUnion(lineCount);
+            // Предварительно сохраняем длины строк для быстрого доступа
+            int[] lengths = new int[lineCount];
+            for (int i = 0; i < lineCount; i++) {
+                lengths[i] = lines.get(i).length;
+            }
 
-            // Получаем максимальное число элементов в строке
-            int columnCount = lines.stream().mapToInt(arr -> arr.length).max().orElse(0);
+            // Максимальное количество колонок
+            int columnCount = 0;
+            for (int length : lengths) {
+                if (length > columnCount) {
+                    columnCount = length;
+                }
+            }
 
-            // Проходимся по всем колонкам
             for (int col = 0; col < columnCount; col++) {
-                // Мапа для хранения индексов связанных со строкой индексов
-                Map<String, Integer> firstOccurrence = new HashMap<>();
-
-                // Проходимся по всем строкам
+                Map<String, Integer> firstOccurrence = new HashMap<>(lineCount / 10);
                 for (int row = 0; row < lineCount; row++) {
-                    String[] line = lines.get(row);
-                    if (line.length <= col) {
-                        // Пропускаем строку, если ее длина меньше текущей колонки
+                    if (lengths[row] <= col) continue;
+
+                    String element = lines.get(row)[col];
+                    if (element == null) {
+                        // Если текущий элемент null, то переходим к следующему
                         continue;
                     }
-
-                    // Элемент текущей строки
-                    String element = line[col].trim();
+                    element = element.trim();
                     if (element.isEmpty()) {
-                        // Пустые элементы не участвуют в объединении
+                        // Если текущий элемент пуст, то переходим к следующему
                         continue;
                     }
 
-                    // Значение предыдущей строки
+                    // Индекс предыдущей строки соответствующей текущему элементу
                     Integer previousRow = firstOccurrence.putIfAbsent(element, row);
                     if (previousRow != null) {
-                        // Объединяем множества, если предыдущая строка != null
-                        disjointSetUnion.unite(row, previousRow);
+                        dsu.unite(row, previousRow);
                     }
                 }
             }
-            return disjointSetUnion;
+            return dsu;
         }
 
         /**
@@ -164,6 +167,7 @@ public class DisjointSetUnion {
          * @see DisjointSetUnion
          * @see #processDsuForLines(List)
          */
+        @Deprecated
         public static Map<Integer, List<Integer>> formGroups(DisjointSetUnion dsu) {
             Map<Integer, List<Integer>> groups = new HashMap<>();
             for (int i = 0; i < dsu.size(); i++) {
@@ -184,30 +188,123 @@ public class DisjointSetUnion {
          */
         public static List<List<Integer>> formLargeGroups(
                 DisjointSetUnion dsu, List<String[]> lines) {
-            return formGroups(dsu).values().stream()
-                    .filter(group -> group.size() > 1)
+            int n = dsu.size();
+
+            if (lines.size() != n) {
+                throw new IllegalArgumentException("Dsu и список строк имеют разную размерность");
+            }
+
+            // Массив размерностей строк (число элементов)
+            int[] lengths = new int[n];
+            for (int i = 0; i < n; i++) {
+                lengths[i] = lines.get(i).length;
+            }
+
+            // Мапа групп формата Индекс группы -> Список индексов релевантных строк
+            Map<Integer, List<Integer>> groups = new HashMap<>(n / 10);
+            for (int i = 0; i < n; i++) {
+                int root = dsu.find(i);
+                groups.computeIfAbsent(root, value -> new ArrayList<>(4)).add(i);
+            }
+
+            return groups.values().stream()
+                    .filter(g -> g.size() > 1)
                     .sorted(
                             (a, b) -> {
-                                // Первичная сортировка по размеру группы
-                                int sizeCompare = Integer.compare(b.size(), a.size());
-                                if (sizeCompare != 0) {
-                                    return sizeCompare;
-                                }
-                                // Вторичная сортировка по максимальному количеству колонок в группе
-                                int maxColsA =
-                                        a.stream()
-                                                .mapToInt(idx -> lines.get(idx).length)
-                                                .max()
-                                                .orElse(0);
-                                int maxColsB =
-                                        b.stream()
-                                                .mapToInt(idx -> lines.get(idx).length)
-                                                .max()
-                                                .orElse(0);
-
-                                return Integer.compare(maxColsB, maxColsA);
+                                // Сортировка по размеру группы
+                                int cmp = Integer.compare(b.size(), a.size());
+                                if (cmp != 0) return cmp;
+                                //  Сортировка по максимальной длине строки в группе
+                                int maxA = 0, maxB = 0;
+                                for (int index : a)
+                                    if (lengths[index] > maxA) maxA = lengths[index];
+                                for (int index : b)
+                                    if (lengths[index] > maxB) maxB = lengths[index];
+                                return Integer.compare(maxB, maxA);
                             })
+                    .map(group -> sortGroupLinesByJoints(group, lines, lengths))
                     .collect(Collectors.toList());
+        }
+
+        /**
+         * Метод сортировки строк внутри группы по пересекающимся множеством. То есть, если имеется
+         * группа [A, B, C, D], в которой A <- B <- [C, D], то получаемый список будет иметь вид [0,
+         * 1, 2, 3], а для случая B <- A, B <- C <- D порядок будет [1, 0, 2, 3]
+         *
+         * @param group Список индексов группы
+         * @param lines Список строк группы
+         * @param lengths Массив размеров массивов элементов списка строк
+         * @return Отсортированный список индексов группы
+         */
+        private static List<Integer> sortGroupLinesByJoints(
+                List<Integer> group, List<String[]> lines, int[] lengths) {
+            if (group.size() <= 2) return group;
+
+            // Мапа строки и ее индексов
+            Map<String, List<Integer>> valueToRows = new HashMap<>(group.size() * 4);
+            for (int index : group) {
+                String[] line = lines.get(index);
+                int length = lengths[index];
+
+                for (int i = 0; i < length; i++) {
+                    String key = line[i];
+                    if (key != null && !key.isEmpty()) {
+                        valueToRows.computeIfAbsent(key, value -> new ArrayList<>(4)).add(index);
+                    }
+                }
+            }
+
+            // Сортируемый список индексов элементов группы
+            List<Integer> sorted = new ArrayList<>(group.size());
+            // Сет индексов еще не обработанных в группе элементов
+            Set<Integer> remaining = new HashSet<>(group);
+
+            // Индекс текущего элемента в группе
+            int current = group.stream().min(Integer::compareTo).get();
+            sorted.add(current);
+            remaining.remove(current);
+
+            while (!remaining.isEmpty()) {
+                int nextIndex = -1;
+                String[] currentLine = lines.get(current);
+                int currentLength = lengths[current];
+
+                // Поиск первого кандидата, имеющего общее значение в той же колонке
+                outer:
+                for (int col = 0; col < currentLength; col++) {
+                    String element = currentLine[col];
+                    if (element == null || element.isEmpty()) continue;
+                    List<Integer> candidates = valueToRows.get(element);
+                    if (candidates != null) {
+                        for (int candidateIndex : candidates) {
+                            if (remaining.contains(candidateIndex)
+                                    && col < lengths[candidateIndex]
+                                    && element.equals(lines.get(candidateIndex)[col])) {
+                                // Если среди оставшихся индексов в группе находится
+                                // необработанный валидный по колонке и значению кандидат,
+                                // то нужно рассмотреть его пересечения и
+                                // добавить в отсортированный список
+                                nextIndex = candidateIndex;
+                                break outer;
+                            }
+                        }
+                    }
+                }
+
+                if (nextIndex == -1) {
+                    // Нет прямой связи по одинаковой колонке ->
+                    // берём любой оставшийся элемент
+                    nextIndex = remaining.iterator().next();
+                }
+
+                // Добавляем элемент в сортируемый список
+                sorted.add(nextIndex);
+                // И убираем его из сета необработанных элементов
+                remaining.remove(nextIndex);
+                // Берем следующий элемент группы
+                current = nextIndex;
+            }
+            return sorted;
         }
     }
 }
