@@ -33,9 +33,12 @@ public class FileProcessor {
     private static final Pattern INVALID_PATTERN = Pattern.compile(".*\"\\d+\"\\d+.*");
 
     /**
-     * Паттерн отбора строк по кавычкам. Строка должна начинаться и заканчиваться с двойных кавычек.
+     * Паттерн отбора строк в файле.
+     * Пример: "\"(.*?)\"" будет отбирать только те строки, которые начинаются и заканчиваются знаком двойной кавычки.
      */
-    private static final Pattern QUOTES_PATTERN = Pattern.compile("\"(.*?)\"");
+    private final Pattern linePattern;
+
+    private final Character separator;
 
     /** Объект для считывания данных. */
     private final Reader reader;
@@ -101,7 +104,7 @@ public class FileProcessor {
             return null;
         }
 
-        if (!line.matches(QUOTES_PATTERN.pattern())) {
+        if (!line.matches(linePattern.pattern())) {
             // Строка не соответствует валидному паттерну
             return null;
         }
@@ -146,7 +149,7 @@ public class FileProcessor {
             char c = line.charAt(i);
             if (c == '"') {
                 quoted = !quoted;
-            } else if (c == ';' && !quoted) {
+            } else if (c == this.separator && !quoted) {
                 // Если текущим символом является ';' вне кавычек,
                 // то добавляем хранимый в stringBuilder элемент в список,
                 elements.add(stringBuilder.toString());
@@ -165,7 +168,7 @@ public class FileProcessor {
      *
      * @param largeGroups Отсортированный список больших групп множеств
      * @param lines Список строк
-     * @see DisjointSetUnion.Util#formLargeGroups(DisjointSetUnion, List) 
+     * @see DisjointSetUnion.Util#formLargeGroups(DisjointSetUnion, List)
      */
     public void writeToFile(List<List<Integer>> largeGroups, List<String[]> lines) {
         try (PrintWriter pw = new PrintWriter(new BufferedWriter(writer))) {
@@ -190,6 +193,8 @@ public class FileProcessor {
      * @return Единая строка с элементами
      */
     private String stringify(String[] arr) {
-        return Arrays.stream(arr).map(item -> "\"" + item + "\"").collect(Collectors.joining(";"));
+        return Arrays.stream(arr)
+                .map(item -> "\"" + item + "\"")
+                .collect(Collectors.joining(this.separator.toString()));
     }
 }
