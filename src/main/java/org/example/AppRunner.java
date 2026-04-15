@@ -2,6 +2,7 @@ package org.example;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Основной класс программы.
@@ -25,21 +26,25 @@ public class AppRunner {
      * @param args Аргументы: путь к исходному файлу, (опционально) путь к результирующему файлу
      */
     public static void main(String[] args) {
-        // Путь к файлу с данными
-        String inputPath;
-        if (args.length > 0) {
-            inputPath = args[0];
-        } else {
-            throw new IllegalArgumentException("Не указан путь к обрабатываемому файлу.");
-        }
+        String linePattern = System.getProperty("linePattern", "\"(.*?)\"");
+        String separator = System.getProperty("separator");
+        String input = System.getProperty("input");
+        String output = System.getProperty("output", "output.txt");
 
-        // Путь к файлу для записи результата
-        String outputPath = (args.length > 1 && !args[1].isEmpty()) ? args[1] : "output.txt";
+        if (linePattern == null || linePattern.isEmpty()) {
+            throw new IllegalArgumentException("Требуется указать паттерн строки");
+        }
+        if (separator == null || separator.length() != 1) {
+            throw new IllegalArgumentException("Длина разделителя элементов строки должна равняться 1: " + separator);
+        }
+        if (input == null || input.isEmpty()) {
+            throw new IllegalArgumentException("Не указан путь к обрабатываемому файлу");
+        }
 
         try {
             // Инициализируем объект обработчика файла с данными для обработки
             FileProcessor fileProcessor =
-                    new FileProcessor(new FileReader(inputPath), new FileWriter(outputPath));
+                    new FileProcessor(Pattern.compile(linePattern), separator.charAt(0), new FileReader(input), new FileWriter(output));
 
             // Читаем валидные строки из файла
             List<String[]> lines = fileProcessor.readLinesFromFile();

@@ -20,18 +20,18 @@ mvn clean package
 3. Запустить программу выполнив команду:
 
 ```bash
-java -Xmx1G -jar target/peacock-hiretest-1.0.jar <путь к искомому файлу для обработки> # создаст файл output.txt в текущей директории для записи результата
+java -Xms1G -Xmx1G -XX:+UseParallelGC -XX:NewRatio=3 -XX:SurvivorRatio=8 -DlinePattern="\"(.*?)\"" -Dseparator=";" -Dinput="исходный_файл"
 ```
 
 или
 
 ```bash
-java -Xmx1G -jar target/peacock-hiretest-1.0.jar <путь к искомому файлу для обработки> <путь к файлу с результирующими данными>
+java -Xms1G -Xmx1G -XX:+UseParallelGC -XX:NewRatio=3 -XX:SurvivorRatio=8 -DlinePattern="\"(.*?)\"" -Dseparator=";" -Dinput="исходный_файл" -Doutput="результирующий_файл"
 ```
 
 **Пример**:
 ```bash
-java -Xmx1G -jar target/peacock-hiretest-1.0.jar lng.txt output.txt
+java -Xms1G -Xmx1G -XX:+UseParallelGC -XX:NewRatio=3 -XX:SurvivorRatio=8 -DlinePattern="\"(.*?)\"" -Dseparator=";" -Dinput="lng-big.csv" -Doutput="output.csv"
 ```
 
 ## Тесты

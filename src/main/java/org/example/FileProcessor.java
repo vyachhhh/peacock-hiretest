@@ -22,20 +22,13 @@ import java.util.stream.Collectors;
 public class FileProcessor {
 
     /**
-     * Паттерн избавления от неверных строк.
-     *
-     * <ul>
-     *   Примеры невалидных строк:
-     *   <li>1) "8383"200000741652251"
-     *   <li>2) "79855053897"83100000580443402";"200000133000191" ""
-     * </ul>
+     * Паттерн отбора строк в файле. Пример: "\"(.*?)\"" будет отбирать только те строки, которые
+     * начинаются и заканчиваются знаком двойной кавычки.
      */
-    private static final Pattern INVALID_PATTERN = Pattern.compile(".*\"\\d+\"\\d+.*");
+    private final Pattern linePattern;
 
-    /**
-     * Паттерн отбора строк по кавычкам. Строка должна начинаться и заканчиваться с двойных кавычек.
-     */
-    private static final Pattern QUOTES_PATTERN = Pattern.compile("\"(.*?)\"");
+    /** Символ разделения элементов внутри строки */
+    private final Character separator;
 
     /** Объект для считывания данных. */
     private final Reader reader;
@@ -77,44 +70,105 @@ public class FileProcessor {
      *   Условия:
      *   <li>1. Строка не пуста
      *   <li>2. Строка не имеет незакрытых кавычек
-     *   <li>3. Строка соответствует паттерну {@link #INVALID_PATTERN}
      * </ul>
      *
      * @param line Строка
      * @return Массив элементов типа {@code String[]}
      * @see #formatLineToList(String)
-     * @see #isQuotedValid(String)
      */
     public String[] parseLine(String line) {
-        if (line == null || line.trim().isEmpty()) {
-            // Строка пуста
+        if (line.isEmpty()) return null;
+
+        // Проверка на незакрытые кавычки
+        int quoteCount = 0;
+        for (int i = 0; i < line.length(); i++) {
+            if (line.charAt(i) == '"') quoteCount++;
+        }
+
+        if ((quoteCount & 1) != 0) {
+            // Нечетное кол-во кавычек
             return null;
         }
 
-        if (line.contains("\"") && !isQuotedValid(line)) {
-            // Строка имеет незакрытую кавычку
+        if (hasInvalidPattern(line)) {
+            // Проверка на невалидный паттерн (отсутствие сепаратора)
             return null;
         }
 
-        if (line.matches(INVALID_PATTERN.pattern())) {
-            // Строка соответствует невалидному паттерну
+        if (!linePattern.matcher(line).matches()) {
+            // Если строка не соответствует переданному паттерну this.linePattern,
+            // то она является невалидной
             return null;
         }
 
-        if (!line.matches(QUOTES_PATTERN.pattern())) {
-            // Строка не соответствует валидному паттерну
-            return null;
-        }
-
+        // Разбор на колонки
         return formatLineToList(line).toArray(new String[0]);
+    }
+
+    /**
+     * Проверка на соответствие строки паттерну с кавычками.</br> Пример валидной строки:
+     * "\"100\";\"200\";\"300\"". Пример невалидной строки: "\"100\"200\"" - здесь отсутствует
+     * сепаратор.
+     *
+     * @param line Строка
+     * @return {@code True} - строка является невалидной; {@code False} - является валидной.
+     */
+    private boolean hasInvalidPattern(String line) {
+        int len = line.length();
+        for (int i = 0; i < len - 1; i++) {
+            if (line.charAt(i) == '"' && Character.isDigit(line.charAt(i + 1))) {
+                if (i > 0 && Character.isDigit(line.charAt(i - 1))) {
+                    // Строка имеет невалидный паттерн если после закрывающей
+                    // кавычки следует цифра без сепаратора
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Метод форматирования строки в список элементов.
+     *
+     * @param line Строка
+     * @return Список элементов строки типа {@code List<String>}
+     */
+    public List<String> formatLineToList(String line) {
+        List<String> elements = new ArrayList<>(8);
+
+        if (line == null || line.isEmpty()) {
+            return elements;
+        }
+
+        boolean quoted = false;
+        StringBuilder stringBuilder = new StringBuilder(16);
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                quoted = !quoted;
+            } else if (c == this.separator && !quoted) {
+                // Если текущим символом является ';' вне кавычек,
+                // то добавляем хранимый в stringBuilder элемент в список,
+                elements.add(stringBuilder.toString());
+                // Обнуляем содержимое stringBuilder
+                stringBuilder.setLength(0);
+            } else {
+                stringBuilder.append(c);
+            }
+        }
+        elements.add(stringBuilder.toString());
+
+        return elements;
     }
 
     /**
      * Метод проверки кол-ва кавычек в строке.
      *
      * @param line Строка
-     * @return {@code true} - если кол-во кавычек является четным; {@code false} - нечетным
+     * @return {@code True} - если кол-во кавычек является четным и больше нуля; {@code False} - нечетным
      */
+    @Deprecated
     public boolean isQuotedValid(String line) {
         int quoteCount = 0;
         for (char c : line.toCharArray()) {
@@ -127,55 +181,21 @@ public class FileProcessor {
     }
 
     /**
-     * Метод форматирования строки в список элементов.
-     *
-     * @param line Строка
-     * @return Список элементов строки типа {@code List<String>}
-     */
-    public List<String> formatLineToList(String line) {
-        List<String> elements = new ArrayList<>();
-
-        if (line == null || line.isEmpty()) {
-            return elements;
-        }
-
-        boolean quoted = false;
-        StringBuilder stringBuilder = new StringBuilder();
-
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (c == '"') {
-                quoted = !quoted;
-            } else if (c == ';' && !quoted) {
-                // Если текущим символом является ';' вне кавычек,
-                // то добавляем хранимый в stringBuilder элемент в список,
-                elements.add(stringBuilder.toString());
-                // Обнуляем содержимое stringBuilder
-                stringBuilder.setLength(0);
-            } else {
-                stringBuilder.append(c);
-            }
-        }
-        elements.add(stringBuilder.toString());
-        return elements;
-    }
-
-    /**
      * Метод записи групп в файл.
      *
      * @param largeGroups Отсортированный список больших групп множеств
      * @param lines Список строк
-     * @see DisjointSetUnion.Util#formLargeGroups(DisjointSetUnion, List) 
+     * @see DisjointSetUnion.Util#formLargeGroups(DisjointSetUnion, List)
      */
     public void writeToFile(List<List<Integer>> largeGroups, List<String[]> lines) {
         try (PrintWriter pw = new PrintWriter(new BufferedWriter(writer))) {
             pw.println(largeGroups.size());
 
             int groupNum = 1;
-            for (List<Integer> groupIdx : largeGroups) {
+            for (List<Integer> groupIndices : largeGroups) {
                 pw.println("Группа " + groupNum);
-                for (int idx : groupIdx) {
-                    pw.println(stringify(lines.get(idx)));
+                for (int index : groupIndices) {
+                    pw.println(stringify(lines.get(index)));
                 }
                 groupNum++;
             }
@@ -190,6 +210,8 @@ public class FileProcessor {
      * @return Единая строка с элементами
      */
     private String stringify(String[] arr) {
-        return Arrays.stream(arr).map(item -> "\"" + item + "\"").collect(Collectors.joining(";"));
+        return Arrays.stream(arr)
+                .map(item -> "\"" + item + "\"")
+                .collect(Collectors.joining(this.separator.toString()));
     }
 }
