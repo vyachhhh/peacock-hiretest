@@ -5,7 +5,7 @@
 ```text
 DisjointSetUnion - класс структуры системы непересекающихся множеств
 FileProcessor - класс для работы с файлами
-Main - класс запуска программы
+AppRunner - класс запуска программы
 ```
 
 ## Использование
@@ -39,5 +39,5 @@ java -Xms1G -Xmx1G -XX:+UseParallelGC -XX:NewRatio=3 -XX:SurvivorRatio=8 -DlineP
 ```text
 DisjointSetUnionTest - тестирование класса DisjointSetUnion
 FileProcessorTest - тестирование класса FileProcessor
-MainTest - тестирование класса Main
+AppRunnerTest - тестирование класса AppRunner
 ```
