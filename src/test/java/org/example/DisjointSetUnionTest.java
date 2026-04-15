@@ -202,12 +202,20 @@ class DisjointSetUnionTest {
 
             @Test
             @DisplayName(
-                    "Возвращает пустой список для DSU с непересекающимися множествами без обработки Util#processDsuForLines")
-            public void doesNotAddDisjointSets() {
+                    "Выбрасывает IllegalArgumentException если структура DSU и список строк имеют разные размерности")
+            public void throwsIllegalArgumentExceptionForDifferentDsuAndLineSizes() {
                 var dsu = new DisjointSetUnion(DSU_NUMBER);
-                var groups = DisjointSetUnion.Util.formLargeGroups(dsu, Collections.emptyList());
-
-                Assertions.assertEquals(0, groups.size());
+                var notEmptyList = new ArrayList<String[]>();
+                notEmptyList.add(new String[]{"123", "222", "200"});
+                Assertions.assertThrows(
+                        IllegalArgumentException.class,
+                        () -> DisjointSetUnion.Util.formLargeGroups(dsu, Collections.emptyList()));
+                Assertions.assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                DisjointSetUnion.Util.formLargeGroups(
+                                        new DisjointSetUnion(0),
+                                        notEmptyList));
             }
 
             @Test

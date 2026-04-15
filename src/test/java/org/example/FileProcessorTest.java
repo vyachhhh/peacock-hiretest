@@ -6,9 +6,13 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @DisplayName("Тестирование класса работы с файлами FileProcessor")
 class FileProcessorTest {
+
+    private final Pattern linePattern = Pattern.compile("\"(.*?)\"");
+    private final Character separator = ';';
 
     private Writer writer;
     private FileProcessor validFileProcessor;
@@ -23,9 +27,9 @@ class FileProcessorTest {
                                 + "\"300\";\"\";\"100\"");
         writer = new StringWriter();
 
-        validFileProcessor = new FileProcessor(reader, writer);
+        validFileProcessor = new FileProcessor(linePattern, separator, reader, writer);
 
-        emptyFileProcessor = new FileProcessor(new StringReader(""), new StringWriter());
+        emptyFileProcessor = new FileProcessor(linePattern, separator, new StringReader(""), new StringWriter());
     }
 
     @Nested
